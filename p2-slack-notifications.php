@@ -1,14 +1,14 @@
 <?php
 /*
-Plugin Name: P2 Email Notifications
-Description: Basic email notification for mentions on P2
+Plugin Name: P2 Slack Notifications
+Description: Basic slack notification for mentions on P2
 Version: 0.2
-Author: Jeremy Felt, 10up
-Author URI: http://10up.com
+Author: Silvan Hagen, required+
+Author URI: http://wearerequired.com
 License: GPL2
 */
 
-/*  Copyright 2012-2013 Jeremy Felt (email: jeremy.felt@gmail.com)
+/*  Copyright 2014 Silvan Hagen (email: silvan@required.ch)
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License, version 2, as
@@ -24,14 +24,14 @@ License: GPL2
 	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-add_action( 'set_object_terms', 'p2_10up_send_mentions', 10, 4 );
+add_action( 'set_object_terms', 'p2_slack_send_mentions', 10, 4 );
 /**
  * P2 handles it's mention magic by matching users with terms in a custom taxonomy. Whenever an update
  * is modified, whether it be a post or comment, P2 will search for any possible matching terms in the
  * content and then update the terms on the post accordingly.
  *
  * This allows us to hook into `set_object_terms` and perform our own actions when users are added to
- * the thread. Emails are sent once per user per thread. It would be nice one day to send an email for
+ * the thread. Slack notifactions are sent once per user per thread. It would be nice one day to send an slack mention for
  * each mention in a thread, as a conversation could occur for a while.
  *
  * @param $post_id int current post ID
@@ -39,7 +39,7 @@ add_action( 'set_object_terms', 'p2_10up_send_mentions', 10, 4 );
  * @param $tt_ids array of taxonomy/term ids, not used
  * @param $taxonomy_label string taxonomy label
  */
-function p2_10up_send_mentions( $post_id, $users, $tt_ids, $taxonomy_label ) {
+function p2_slack_send_mentions( $post_id, $users, $tt_ids, $taxonomy_label ) {
 
 	if ( 'mentions' !== $taxonomy_label )
 		return;
@@ -61,22 +61,25 @@ function p2_10up_send_mentions( $post_id, $users, $tt_ids, $taxonomy_label ) {
 
 	if ( ! $current_post || 'publish' !== $current_post->post_status )
 		return;
-
-	$post_link = get_permalink( $post_id );
-	$p2_name = get_bloginfo( 'name' );
-	$post_author = get_the_author_meta( 'display_name', $current_post->post_author );
-
-	$email_subject = apply_filters( 'p2_10up_notification_subject', "You've been Mentioned by " . $post_author . "! [" . $p2_name . "]", $post_id, $post_author, $p2_name );
-	$email_content = apply_filters( 'p2_10up_notification_body', "You've been mentioned by " . $post_author . " in " . $post_link . "\n\n" . $current_post->post_content, $post_id, $post_author, $post_link );
-
-	$user_emails = array();
+	
+	$user_names = array();
 
 	foreach ( $new_user_mentions as $user ) {
 		$user_full = get_user_by( 'login', $user );
-		$user_emails[] = $user_full->user_email;
+		$user_names[] = '@' . $user_full->user_login;
 	}
-
-	wp_mail( $user_emails, $email_subject, $email_content );
+	
+	$mentions = implode( ', ', $user_names );
+	
+	$bot_url = get_option( 'p2_slack_webhook_url' );
+	$bot_args = array(
+		'icon_emoji' => ':ok_woman:',
+		'channel' => '@neverything',
+		'username' => get_bloginfo( 'name' ),
+		'text' => sprintf( '%s you are mentioned in <%s|%s> by %s', $mentions, get_permalink( $post_id ), get_the_title( $post_id ), get_the_author_meta( 'user_login', $current_post->post_author ); );
+	);
+	
+	wp_remote_post( $bot_url, array( 'payload' => $bot_args ) );
 
 	update_post_meta( $post_id, '_p2_notifications_sent', $users );
 }
