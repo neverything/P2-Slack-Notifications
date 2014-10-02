@@ -66,7 +66,7 @@ function p2_slack_send_mentions( $post_id, $users, $tt_ids, $taxonomy_label ) {
 
 	foreach ( $new_user_mentions as $user ) {
 		$user_full = get_user_by( 'login', $user );
-		$user_names[] = '@' . $user_full->user_login;
+		$user_names[] = '<@' . $user_full->user_login . '>';
 	}
 	
 	$mentions = implode( ', ', $user_names );
@@ -74,12 +74,16 @@ function p2_slack_send_mentions( $post_id, $users, $tt_ids, $taxonomy_label ) {
 	$bot_url = get_option( 'p2_slack_webhook_url' );
 	$bot_args = array(
 		'icon_emoji' => ':ok_woman:',
-		'channel' => '@neverything',
+		'channel' => '#maintenance-support',
 		'username' => get_bloginfo( 'name' ),
-		'text' => sprintf( '%s you are mentioned in <%s|%s> by %s', $mentions, get_permalink( $post_id ), get_the_title( $post_id ), get_the_author_meta( 'user_login', $current_post->post_author ); );
+		'text' => sprintf( '%s mentioned in <%s|%s>', $mentions, get_permalink( $post_id ), get_the_title( $post_id ) )
 	);
-	
-	wp_remote_post( $bot_url, array( 'payload' => $bot_args ) );
 
+	$payload = array( 'payload' => json_encode( $bot_args ) );
+	
+	$posting = wp_remote_post( $bot_url, array( 'body' => $payload ) );
+
+	update_post_meta( $post_id, '_p2_notifications_payload', $payload );
+	update_post_meta( $post_id, '_p2_notifications_response', $posting );
 	update_post_meta( $post_id, '_p2_notifications_sent', $users );
 }
