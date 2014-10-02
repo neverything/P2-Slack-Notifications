@@ -1,4 +1,4 @@
-P2 Email Notifications
+P2 Slack Notifications
 ======================
 
 [P2](http://wordpress.org/extend/themes/p2) is a WordPress theme from [Automattic](http://automattic.com) that provides a great format for threaded group conversations on the front end of a WordPress installation.
